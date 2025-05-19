@@ -1,0 +1,493 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Config",
+  "type": "object",
+  "required": [
+    "databases",
+    "models"
+  ],
+  "properties": {
+    "builder_agent": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "databases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Database"
+      }
+    },
+    "defaults": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Defaults"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "models": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Model"
+      }
+    }
+  },
+  "definitions": {
+    "Database": {
+      "type": "object",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "key_path",
+            "type"
+          ],
+          "properties": {
+            "dataset": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "datasets": {
+              "default": {},
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "dry_run_limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "key_path": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "bigquery"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "dataset",
+            "type"
+          ],
+          "properties": {
+            "dataset": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "duckdb"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "account",
+            "database",
+            "password_var",
+            "type",
+            "username",
+            "warehouse"
+          ],
+          "properties": {
+            "account": {
+              "type": "string"
+            },
+            "database": {
+              "type": "string"
+            },
+            "password": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "password_var": {
+              "type": "string"
+            },
+            "role": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "snowflake"
+              ]
+            },
+            "username": {
+              "type": "string"
+            },
+            "warehouse": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "database": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "host": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "password_var": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "postgres"
+              ]
+            },
+            "user": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "database": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "host": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "password_var": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "redshift"
+              ]
+            },
+            "user": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "database": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "host": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "password_var": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "port": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "mysql"
+              ]
+            },
+            "user": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "database": {
+              "default": "",
+              "type": "string"
+            },
+            "host": {
+              "default": "",
+              "type": "string"
+            },
+            "password_var": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "schemas": {
+              "default": {},
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "clickhouse"
+              ]
+            },
+            "user": {
+              "default": "",
+              "type": "string"
+            }
+          }
+        }
+      ],
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "Defaults": {
+      "type": "object",
+      "properties": {
+        "database": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "Model": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "key_var",
+            "model_ref",
+            "name",
+            "vendor"
+          ],
+          "properties": {
+            "api_url": {
+              "default": "https://api.openai.com/v1",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "azure_api_version": {
+              "type": "string"
+            },
+            "azure_deployment_id": {
+              "type": "string"
+            },
+            "key_var": {
+              "type": "string"
+            },
+            "model_ref": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "vendor": {
+              "type": "string",
+              "enum": [
+                "openai"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "key_var",
+            "model_ref",
+            "name",
+            "vendor"
+          ],
+          "properties": {
+            "key_var": {
+              "type": "string"
+            },
+            "model_ref": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "vendor": {
+              "type": "string",
+              "enum": [
+                "google"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "api_key",
+            "api_url",
+            "model_ref",
+            "name",
+            "vendor"
+          ],
+          "properties": {
+            "api_key": {
+              "type": "string"
+            },
+            "api_url": {
+              "type": "string"
+            },
+            "model_ref": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "vendor": {
+              "type": "string",
+              "enum": [
+                "ollama"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "key_var",
+            "model_ref",
+            "name",
+            "vendor"
+          ],
+          "properties": {
+            "api_url": {
+              "default": "https://api.anthropic.com/v1",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "key_var": {
+              "type": "string"
+            },
+            "model_ref": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "vendor": {
+              "type": "string",
+              "enum": [
+                "anthropic"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

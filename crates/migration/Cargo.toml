@@ -1,0 +1,19 @@
+[package]
+name = "migration"
+version = "0.2.2" # TODO: remove this when https://github.com/googleapis/release-please/issues number 2111 is fixed
+# version.workspace = true
+authors.workspace = true
+description.workspace = true
+documentation.workspace = true
+publish.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+
+[dependencies]
+async-std = { version = "1", features = ["attributes", "tokio1"] }
+sea-orm-migration = { workspace = true }
+
+[lib]
+name = "migration"
+path = "src/lib.rs"

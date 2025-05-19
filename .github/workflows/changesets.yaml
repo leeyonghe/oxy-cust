@@ -1,0 +1,42 @@
+name: Changesets
+
+on:
+  workflow_call:
+    outputs:
+      oxy:
+        value: ${{ jobs.changesets.outputs.oxy }}
+      web-app:
+        value: ${{ jobs.changesets.outputs.web-app }}
+      changes:
+        value: ${{ jobs.changesets.outputs.changes }}
+
+permissions:
+  contents: write
+  actions: read
+  pull-requests: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  changesets:
+    runs-on: ubuntu-latest
+    outputs:
+      changes: ${{ steps.changes.outputs.changes }}
+      oxy: ${{ steps.changes.outputs.oxy }}
+      web-app: ${{ steps.changes.outputs.web-app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          base: ${{ github.ref_name }}
+          filters: |
+            oxy:
+              - "crates/**"
+              - "**/Cargo.toml"
+              - "**/Cargo.lock"
+            web-app:
+              - "web-app/**"
+              - "pnpm-lock.yaml"

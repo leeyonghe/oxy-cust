@@ -1,0 +1,24 @@
+name: Branches Cleaner
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+permissions:
+  contents: write
+  actions: read
+  pull-requests: read
+
+jobs:
+  cleanup-branches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: GitHub Branch Cleaner
+        uses: fpicalausa/remove-stale-branches@v2.4.0
+        with:
+          exempt-branches-regex: ^(main|[0-9]+.[0-9]+.x)$
+          days-before-branch-stale: 90
+          days-before-branch-delete: 14
+          ignore-unknown-authors: true
+          default-recipient: luong-komorebi

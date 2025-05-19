@@ -1,0 +1,104 @@
+{
+  "packages": {
+    "crates/core": {
+      "release-type": "rust",
+      "component": "core"
+    },
+    "crates/py": {
+      "release-type": "rust",
+      "component": "py"
+    },
+    "crates/migration": {
+      "release-type": "rust",
+      "component": "migration"
+    },
+    "crates/entity": {
+      "release-type": "rust",
+      "component": "entity"
+    },
+    "web-app": {
+      "release-type": "node",
+      "component": "web-app"
+    }
+  },
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "group-pull-request-title-pattern": "chore(${branch}): release",
+  "plugins": [
+    {
+      "type": "cargo-workspace",
+      "updateAllPackages": true
+    },
+    {
+      "type": "linked-versions",
+      "groupName": "oxy",
+      "components": ["core", "py", "migration", "entity", "web-app"]
+    }
+  ],
+  "changelog-sections": [
+    {
+      "type": "feat",
+      "section": "<!-- 0 -->🚀 Features",
+      "hidden": false
+    },
+    {
+      "type": "feature",
+      "section": "<!-- 0 -->🚀 Features",
+      "hidden": false
+    },
+    {
+      "type": "fix",
+      "section": "<!-- 1 -->🐛 Bug Fixes",
+      "hidden": false
+    },
+    {
+      "type": "perf",
+      "section": "<!-- 4 -->⚡ Performance",
+      "hidden": false
+    },
+    {
+      "type": "revert",
+      "section": "<!-- 9 -->◀️ Revert",
+      "hidden": false
+    },
+    {
+      "type": "docs",
+      "section": "<!-- 3 -->📚 Documentation",
+      "hidden": true
+    },
+    {
+      "type": "style",
+      "section": "<!-- 5 -->🎨 Styling",
+      "hidden": true
+    },
+    {
+      "type": "chore",
+      "section": "<!-- 7 -->⚙️ Miscellaneous Tasks",
+      "hidden": true
+    },
+    {
+      "type": "refactor",
+      "section": "<!-- 2 -->🚜 Refactor",
+      "hidden": true
+    },
+    {
+      "type": "test",
+      "section": "<!-- 6 -->🧪 Testing",
+      "hidden": true
+    },
+    {
+      "type": "build",
+      "section": "<!-- 10 -->💼 Build System",
+      "hidden": true
+    },
+    {
+      "type": "ci",
+      "section": "<!-- 11 -->💼 Continuous Integration",
+      "hidden": true
+    }
+  ],
+  "skip-github-release": false,
+  "include-component-in-tag": false,
+  "include-v-in-tag": false,
+  "versioning": "default"
+}

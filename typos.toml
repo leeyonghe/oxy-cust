@@ -1,0 +1,12 @@
+# configuration for https://github.com/crate-ci/typos
+
+[type.md]
+extend-ignore-re = [
+  "\\[[[:xdigit:]]{7}\\]\\(https://github.com/oxy-hq/oxy(-internal)?/commit/[[:xdigit:]]{40}\\)",
+]
+
+[files]
+extend-exclude = [
+  "CHANGELOG.md",
+  "*/docker-entrypoints/*"
+]

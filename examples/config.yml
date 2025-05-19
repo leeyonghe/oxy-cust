@@ -1,0 +1,108 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/oxy-hq/oxy/refs/heads/main/json-schemas/config.json
+
+databases:
+  - name: primary_database
+    type: bigquery
+    key_path: bigquery-sample.key
+    datasets:
+      dbt_prod_core:
+        - "*"
+      dbt_prod_metrics:
+        - "monthly_active_*"
+      user_analytics:
+        - "company_activity_analytics_summary_view"
+      python_prod:
+        - "v1_*"
+
+    # dry_run_limit: 1
+
+  - name: omni_bigquery
+    type: bigquery
+    # key_path: omni_bigquery.json
+    key_path: bigquery-sample.key # this is just here for placeholder
+    dataset: dbt_prod_fpx
+
+  - name: local
+    type: duckdb
+    key_path: None
+    dataset: .db/
+
+  - name: snowflake
+    type: snowflake
+    account: jla01554
+    username: jeffthebest
+    password_var: SNOWFLAKE_PASSWORD
+    warehouse: COMPUTE_WH
+    database: DEMO_DB
+
+  - name: postgres
+    type: postgres
+    host: "localhost"
+    port: "5432"
+    user: "admin"
+    password_var: POSTGRES_PASSWORD
+    database: "default"
+
+  - name: mysql
+    type: mysql
+    host: "localhost"
+    port: "3306"
+    user: "admin"
+    password_var: MYSQL_PASSWORD
+    database: "default"
+
+  - name: clickhouse
+    type: clickhouse
+    host: http://localhost:8123
+    user: default
+    password_var: CLICKHOUSE_PASSWORD
+    database: default
+    schemas:
+      default:
+        - "hacker_news_*"
+
+models:
+  - name: openai-4o-mini
+    vendor: openai
+    model_ref: gpt-4o-mini
+    key_var: OPENAI_API_KEY
+  - name: openai-4o
+    vendor: openai
+    model_ref: gpt-4o
+    key_var: OPENAI_API_KEY
+  - name: openai-4.1
+    vendor: openai
+    model_ref: gpt-4.1
+    key_var: OPENAI_API_KEY
+  # - name: openai-4o-mini-azure
+  #   vendor: openai
+  #   model_ref: openai-4o-mini-azure
+  #   api_url: something
+  #   azure_deployment_id: "SMART-Automated-gpt-4o"
+  #   azure_api_version: "2024-08-01-preview"
+  #   key_var: OPENAI_AZURE_KEY
+  - name: llama3.2
+    vendor: ollama
+    model_ref: llama3.2:latest
+    api_url: http://localhost:11434/v1
+    api_key: secret
+  - name: gemini1.5pro
+    key_var: GEMINI_API_KEY
+    model_ref: gemini-1.5-pro
+    vendor: google
+  - vendor: anthropic
+    name: claude-3-7-sonnet
+    model_ref: claude-3-7-sonnet-20250219
+    key_var: ANTHROPIC_API_KEY
+
+retrievals:
+  - name: default
+    embed_model: "bge-small-en-v1.5"
+    rerank_model: "jina-reranker-v2-base-multiligual"
+    top_k: 10
+    factor: 5
+
+defaults:
+  database: local
+
+# builder_agent: agents/builder.agent.yml

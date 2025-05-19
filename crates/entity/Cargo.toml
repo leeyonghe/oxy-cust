@@ -1,0 +1,17 @@
+[package]
+name = "entity"
+version = "0.2.2" # TODO: remove this when https://github.com/googleapis/release-please/issues number 2111 is fixed
+# version.workspace = true
+authors.workspace = true
+description.workspace = true
+documentation.workspace = true
+publish.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+sea-orm = { workspace = true }
+
+[lib]
+name = "entity"
+path = "src/lib.rs"

@@ -1,0 +1,197 @@
+name: CI check
+
+on:
+  pull_request:
+    branches:
+      - main
+      - "[0-9]+.[0-9]+.x"
+    paths-ignore:
+      - "docs/**"
+      - "web-app/**"
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+  push:
+    branches:
+      - main
+      - trigger-ci-workflow
+    paths-ignore:
+      - "docs/**"
+      - "web-app/**"
+
+permissions:
+  contents: write
+  actions: read
+  pull-requests: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUST_LOG: debug
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  changesets:
+    if: ${{ github.event_name != 'pull_request' || (!startsWith(github.head_ref, 'release-please--') && !github.event.pull_request.draft) }}
+    uses: ./.github/workflows/changesets.yaml
+    name: Changesets
+
+  typos:
+    name: Typos
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check typos
+        uses: crate-ci/typos@master
+
+  fmt-web:
+    name: Format web
+    needs: [changesets, typos]
+    concurrency:
+      group: fmt-web-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    if: needs.changesets.outputs.web-app == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        id: setup-node
+        with:
+          node-version: lts/*
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - uses: actions/cache@v4
+        name: Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: pnpm-store-ubuntu-22.04-x86_64-unknown-linux-gnu-${{ hashFiles('**/pnpm-lock.yaml') }}
+          # cache key from build job
+          restore-keys: |
+            pnpm-store-ubuntu-22.04-x86_64-unknown-linux-gnu
+      - name: Run pnpm install
+        run: pnpm install --prefer-frozen-lockfile
+      - name: Run lint-staged
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            pnpm lint-staged --diff="origin/${{ github.base_ref }}...origin/${{ github.head_ref }}"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            pnpm lint-staged --diff="${{ github.event.before }}...${{ github.event.after }}"
+          fi
+
+  build-web:
+    name: Build web
+    needs: [changesets, typos]
+    concurrency:
+      group: build-web-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    if: needs.changesets.outputs.web-app == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - uses: actions/cache@v4
+        name: Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: pnpm-store-ubuntu-22.04-x86_64-unknown-linux-gnu-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-ubuntu-22.04-x86_64-unknown-linux-gnu
+      - name: Restore Vite pre-bundle cache
+        uses: actions/cache@v4
+        with:
+          path: web-app/node_modules/.vite
+          key: vite-prebundle-${{ hashFiles('web-app/pnpm-lock.yaml') }}-${{ hashFiles('web-app/vite.config.*', 'web-app/src/**') }}
+          restore-keys: |
+            vite-prebundle-
+      - name: Install dependencies & Build web-app
+        env:
+          NODE_OPTIONS: "--max_old_space_size=4096"
+        run: |
+          pnpm install --prefer-frozen-lockfile
+          pnpm -C web-app build
+      - name: Save Vite pre-bundle cache
+        if: always()
+        uses: actions/cache@v4
+        with:
+          path: web-app/node_modules/.vite
+          key: vite-prebundle-${{ hashFiles('web-app/pnpm-lock.yaml') }}-${{ hashFiles('web-app/vite.config.*', 'web-app/src/**') }}
+
+  cargo-check-and-test:
+    concurrency:
+      group: cargo-check-and-test-${{ matrix.task }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    needs: [changesets, typos]
+    if: needs.changesets.outputs.oxy == 'true'
+    name: Format cargo, check & test
+    runs-on: ${{ github.repository == 'oxy-hq/oxy-internal' && 'warp-ubuntu-latest-arm64-2x' || 'ubuntu-latest' }}
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      BIGQUERY_SAMPLE_KEY: ${{ secrets.BIGQUERY_SAMPLE_KEY }}
+      GEMINI_API_KEY: "empty"
+      ANTHROPIC_API_KEY: "empty"
+    strategy:
+      fail-fast: true
+      matrix:
+        task: [check, test]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Collect Workflow Telemetry
+        uses: catchpoint/workflow-telemetry-action@v2
+        with:
+          theme: dark
+          metric_frequency: 3
+          comment_on_pr: false
+      - uses: rui314/setup-mold@v1
+        if: runner.os == 'Linux'
+        with:
+          make-default: true
+
+      - name: Prep Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Prep cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.task }}
+      # protobuf is required by lance https://github.com/lancedb/lance/issues/3073
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run task
+        run: |
+          if [[ "${{ matrix.task }}" == "check" ]]; then
+            cargo clippy --profile ci --verbose --workspace --fix
+          elif [[ "${{ matrix.task }}" == "test" ]]; then
+            touch examples/bigquery-sample.key
+            echo $BIGQUERY_SAMPLE_KEY > examples/bigquery-sample.key
+            cargo test --profile ci --verbose --no-fail-fast -- --nocapture
+            cargo run --profile ci -- gen-config-schema --check
+          fi

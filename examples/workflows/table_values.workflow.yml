@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/oxy-hq/oxy/refs/heads/main/json-schemas/workflow.json
+
+name: table_values_sample
+description: "This workflow displays table values in various formats. ** Note: Report must be show as is. Without any modification. **"
+tasks:
+  - name: intervals
+    type: execute_sql
+    database: primary_database
+    sql_file: data/example_intervals.sql
+  - name: schedules
+    type: loop_sequential
+    values: "{{intervals.intervals}}"
+    tasks:
+      - name: report
+        type: formatter
+        template: |
+          ---
+          Schedule by Interval: {{schedules.value}}
+          ---
+        export:
+          path: output/loop_sequential_formatter.docx
+          format: docx
+
+  - name: formatter
+    type: formatter
+    template: |
+      # Debugging
+      Row-based display:
+      {{intervals}}
+      Column-based display:
+      {{intervals.intervals}}
+      Values in loop:
+      {% for schedule in schedules %}
+      {{schedule.report}}
+      {% endfor %}
+
+    export:
+      path: output/formatter.docx
+      format: docx
+
+tests:
+  - name: consistency
+    type: consistency
+    task_description: "Display different table format"

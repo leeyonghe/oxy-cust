@@ -1,0 +1,196 @@
+name: Public Release
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag or branch to release"
+        required: true
+        default: ""
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+    paths-ignore:
+      - "docs/**"
+env:
+  CARGO_TERM_COLOR: always
+  MACOSX_DEPLOYMENT_TARGET: "11.0"
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build-cli:
+    if: github.repository == 'oxy-hq/oxy'
+    concurrency:
+      group: public-oxy-build-cli-${{ inputs.tag || github.ref_name  }}-${{ matrix.job.os }}-${{ matrix.job.target }}
+      cancel-in-progress: true
+    name: Build CLI version ${{ inputs.tag || github.ref_name  }} for target ${{ matrix.job.target }}
+    runs-on: ${{ matrix.job.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - os: macos-13
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag || github.ref_name  }}
+
+      #-- Create common artifacts folder
+      - name: Create artifacts folder
+        run: mkdir -p artifacts
+
+      - uses: rui314/setup-mold@v1
+        if: runner.os == 'Linux'
+        with:
+          make-default: true
+      #-- Prep rust
+      - name: Prep Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.86.0
+          targets: ${{ matrix.job.target }}
+      - name: Prep cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: build-cli-${{ matrix.job.os }}-${{ matrix.job.target }}
+          cache-all-crates: "true"
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      # protobuf is required by lance https://github.com/lancedb/lance/issues/3073
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      #-- Prep node
+      - name: Prep Node
+        uses: actions/setup-node@v4
+        id: setup-node
+        with:
+          node-version: lts/*
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - uses: actions/cache@v4
+        name: Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: pnpm-store-${{ matrix.job.os }}-${{ matrix.job.target }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ matrix.job.os }}-${{ matrix.job.target }}
+      - name: Install dependencies & Build web-app
+        env:
+          NODE_OPTIONS: "--max_old_space_size=4096"
+        run: |
+          pnpm install --prefer-frozen-lockfile
+          pnpm -C web-app build
+
+      #-- Build oxy cli binary
+      - name: Build oxy cli
+        shell: bash
+        run: |
+          cargo build --release --target ${{ matrix.job.target }}
+          mv target/${{ matrix.job.target }}/release/oxy artifacts/oxy-${{ matrix.job.target }}
+
+      #-- Build json schema
+      - name: Generate config schema (once)
+        if: ${{ matrix.job.target == 'aarch64-apple-darwin' }}
+        run: |
+          cargo run --release --target ${{ matrix.job.target }} -- gen-config-schema
+          cp -a json-schemas/. artifacts/
+          cp Cargo.lock artifacts/
+
+      #-- Build checksum
+      - name: Create binary checksum
+        run: shasum --algorithm 256 --binary oxy-${{ matrix.job.target }} | tee SHA256SUM-oxy-${{ matrix.job.target }}.txt
+        working-directory: artifacts
+
+      #-- Build python lib
+      - name: Set up Python 3.11
+        id: setup-python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+          cache: "pip"
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          target: ${{ matrix.job.target }}
+          args: --release --out dist
+          sccache: "true"
+          # manylinux: auto
+          container: off
+          working-directory: crates/py
+      - name: Move wheels
+        run: mv crates/py/dist/* artifacts/
+
+      - name: Copy backend changelog (once)
+        if: ${{ matrix.job.target == 'aarch64-apple-darwin' }}
+        run: cp crates/core/CHANGELOG.md artifacts/backend-CHANGELOG.md
+
+      - name: Copy frontend changelog (once)
+        if: ${{ matrix.job.target == 'aarch64-apple-darwin' }}
+        run: cp web-app/CHANGELOG.md artifacts/frontend-CHANGELOG.md
+
+      - name: Unify release-please changelog (once)
+        if: ${{ matrix.job.target == 'aarch64-apple-darwin' }}
+        run: |
+          echo "## Backend" > artifacts/CHANGELOG.md
+          awk '/^## \[/{flag=0} /^## \[${{ inputs.tag || github.ref_name  }}\]/{flag=1} flag' artifacts/backend-CHANGELOG.md >> artifacts/CHANGELOG.md
+          echo "" >> artifacts/CHANGELOG.md
+          echo "## Frontend" >> artifacts/CHANGELOG.md
+          awk '/^## \[/{flag=0} /^## \[${{ inputs.tag || github.ref_name  }}\]/{flag=1} flag' artifacts/frontend-CHANGELOG.md >> artifacts/CHANGELOG.md
+
+      #-- Upload release artifacts
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-${{ matrix.job.target }}
+          path: |
+            artifacts/**/*
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [build-cli]
+    steps:
+      - name: Download release assets from artifact
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: List all artifacts
+        run: ls -R ./artifacts
+      - name: Combine checksums
+        run: cat artifacts/SHA256SUM-oxy-*.txt | tee artifacts/SHA256SUMS.txt
+      - name: Ensure binaries are executable
+        run: chmod +x artifacts/oxy-*
+
+      - name: Upload files to github release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: true
+          tag_name: ${{ inputs.tag || github.ref_name  }}
+          body_path: artifacts/CHANGELOG.md
+          files: artifacts/**/*
